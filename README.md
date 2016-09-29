@@ -15,7 +15,7 @@ all required python packages:
 (environment can be recreated using 'conda create included COMPASS.yml file)
 
 ```
-conda env create COMPASS.yml
+conda env create -f COMPASS.yml
 
 ```
 
