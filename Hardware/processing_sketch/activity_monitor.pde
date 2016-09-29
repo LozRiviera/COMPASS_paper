@@ -1,4 +1,4 @@
-// Processing Sketch for eLife
+// Processing Sketch for storing and plotting data
 /*
 * Receiving a simple string of values from the arduino and saving to a text file with a UTC (iso8601) encoding
 * Light data are mapped to a background and the activity of each channel displayed as histograms.
