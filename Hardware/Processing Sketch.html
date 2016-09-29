@@ -1,0 +1,144 @@
+<html><body><pre>
+<span style="color: #666666;">//&nbsp;Processing&nbsp;Sketch&nbsp;for&nbsp;eLife</span>
+<span style="color: #666666;">/*</span>
+<span style="color: #666666;">*&nbsp;Receiving&nbsp;a&nbsp;simple&nbsp;string&nbsp;of&nbsp;values&nbsp;from&nbsp;the&nbsp;arduino&nbsp;and&nbsp;saving&nbsp;to&nbsp;a&nbsp;text&nbsp;file&nbsp;with&nbsp;a&nbsp;UTC&nbsp;(iso8601)&nbsp;encoding</span>
+<span style="color: #666666;">*&nbsp;Light&nbsp;data&nbsp;are&nbsp;mapped&nbsp;to&nbsp;a&nbsp;background&nbsp;and&nbsp;the&nbsp;activity&nbsp;of&nbsp;each&nbsp;channel&nbsp;displayed&nbsp;as&nbsp;histograms.</span>
+<span style="color: #666666;">*&nbsp;Press&nbsp;&apos;x&apos;&nbsp;to&nbsp;stop&nbsp;logging&nbsp;and&nbsp;save&nbsp;file</span>
+<span style="color: #666666;">*/</span>
+<span style="color: #33997E;">import</span> processing.serial.*;
+<span style="color: #33997E;">import</span> java.util.Date;
+<span style="color: #33997E;">import</span> java.text.SimpleDateFormat;
+<span style="color: #E2661A;">PFont</span> font1; <span style="color: #666666;">//allows for printing text</span>
+<span style="color: #E2661A;">PFont</span> font2; <span style="color: #666666;">//allows for printing text</span>
+<span style="color: #E2661A;">PrintWriter</span> output;
+SimpleDateFormat&nbsp;fnameFormat=&nbsp;<span style="color: #33997E;">new</span> SimpleDateFormat(<span style="color: #7D4793;">&quot;yyMMdd_HHmm&quot;</span>); <span style="color: #666666;">// define date and time formatfor filename</span>
+SimpleDateFormat&nbsp;timeFormat&nbsp;=&nbsp;<span style="color: #33997E;">new</span> SimpleDateFormat(<span style="color: #7D4793;">&quot;yyyy-MM-dd&apos;T&apos;HH:mm:ss.SSS&apos;Z&apos;&quot;</span>); <span style="color: #666666;">// and for timestamps of incomming data</span>
+<span style="color: #E2661A;">String</span> fileName;
+
+Serial&nbsp;myPort;&nbsp;<span style="color: #666666;">// Create objects from Serial class</span>
+<span style="color: #E2661A;">short</span> portIndex= 1; <span style="color: #666666;">// select the com port, 0 is the first port (Macs normally use 0, windows machines 1, or highest)</span>
+<span style="color: #E2661A;">String</span> dataIn = <span style="color: #33997E;">null</span>;
+<span style="color: #E2661A;">String</span> HEADER = <span style="color: #7D4793;">&quot;D&quot;</span>; <span style="color: #666666;">//Data HEADER</span>
+<span style="color: #E2661A;">short</span> LF = 10; <span style="color: #666666;">// ASCII linefeed indicator</span>
+<span style="color: #E2661A;">color</span> off = <span style="color: #006699;">color</span>(150,150,150);
+<span style="color: #E2661A;">color</span> on = <span style="color: #006699;">color</span>(250, 250, 158);
+
+<span style="color: #666666;">//&nbsp;for&nbsp;plotting&nbsp;data&nbsp;from&nbsp;the&nbsp;arduino&nbsp;(channels&nbsp;1&nbsp;to&nbsp;6&nbsp;plus&nbsp;LDR)</span>
+<span style="color: #E2661A;">int</span> Light = 0;
+<span style="color: #E2661A;">int</span> PollCount = 0; <span style="color: #666666;">// counter for plotting hourly activity</span>
+<span style="color: #E2661A;">int</span> HourCount = 0; <span style="color: #666666;">// hour counter for plotting daily activity</span>
+<span style="color: #E2661A;">float</span> LightBar = 0;
+<span style="color: #E2661A;">float</span> LightBar2 = 0;
+<span style="color: #E2661A;">float</span>[] ActivBar = <span style="color: #33997E;">new</span> <span style="color: #E2661A;">float</span>[7];
+<span style="color: #E2661A;">float</span>[] ActivBar2 = <span style="color: #33997E;">new</span> <span style="color: #E2661A;">float</span>[7];
+<span style="color: #E2661A;">int</span> HourTotalLight = 0;
+<span style="color: #E2661A;">float</span>[] HourTotalActivity = <span style="color: #33997E;">new</span> <span style="color: #E2661A;">float</span>[7];
+
+<span style="color: #33997E;">void</span> <span style="color: #006699;"><b>setup</b></span>()
+{
+<span style="color: #006699;">size</span>(1100, 540); <span style="color: #666666;">// set window size</span>
+<span style="color: #006699;">smooth</span>();
+<span style="color: #666666;">//&nbsp;create&nbsp;some&nbsp;fonts&nbsp;to&nbsp;use&nbsp;in&nbsp;plotting&nbsp;window</span>
+font1&nbsp;=&nbsp;<span style="color: #006699;">createFont</span>(<span style="color: #7D4793;">&quot;Arial bold&quot;</span>, 32, <span style="color: #33997E;">true</span>);
+font2&nbsp;=&nbsp;<span style="color: #006699;">createFont</span>(<span style="color: #7D4793;">&quot;Arial&quot;</span>, 48, <span style="color: #33997E;">true</span>);
+<span style="color: #666666;">//&nbsp;Draw&nbsp;backround&nbsp;elements&nbsp;and&nbsp;scalebars</span>
+<span style="color: #006699;">background</span>(255);
+<span style="color: #006699;">fill</span>(150);
+<span style="color: #669900;">for</span> (<span style="color: #E2661A;">int</span> i=0; i&lt;6;i++){
+&nbsp;&nbsp;<span style="color: #006699;">rect</span>(10, 40+(80*i) , 760, 70, 10); <span style="color: #666666;">// 1hr left-hand rounded rectangle</span>
+&nbsp;&nbsp;<span style="color: #006699;">line</span>(40, 55+(80*i), 40, 105+(80*i)); <span style="color: #666666;">// 1hr graphs y axis</span>
+&nbsp;&nbsp;}
+<span style="color: #669900;">for</span> (<span style="color: #E2661A;">int</span> i=0; i&lt;6;i++){
+&nbsp;&nbsp;<span style="color: #006699;">rect</span>(800, 40+(80*i) , 290, 70, 10);<span style="color: #666666;">// 24hr right-hand rounded rectangle</span>
+&nbsp;&nbsp;<span style="color: #006699;">line</span>(830, 55+(80*i), 830, 105+(80*i)); <span style="color: #666666;">// 24hr graphs y axis</span>
+&nbsp;&nbsp;}
+<span style="color: #669900;">for</span> (<span style="color: #E2661A;">int</span> i=0; i&lt;6;i++){
+&nbsp;&nbsp;<span style="color: #006699;">fill</span>(0);
+&nbsp;&nbsp;<span style="color: #006699;">textAlign</span>(<span style="color: #718A62;">RIGHT</span>);
+&nbsp;&nbsp;<span style="color: #006699;">text</span>(<span style="color: #7D4793;">&quot;0&quot;</span>, 40, 105+(80*i)); <span style="color: #666666;">//1hr 0 axis label</span>
+&nbsp;&nbsp;<span style="color: #006699;">text</span>(<span style="color: #7D4793;">&quot;100&quot;</span>, 40, 55+(80*i)); <span style="color: #666666;">//1hr 100</span>
+&nbsp;&nbsp;<span style="color: #006699;">text</span>(<span style="color: #7D4793;">&quot;0&quot;</span>, 830, 105+(80*i)); <span style="color: #666666;">//24hr 0</span>
+&nbsp;&nbsp;<span style="color: #006699;">text</span>(<span style="color: #7D4793;">&quot;100&quot;</span>, 830, 55+(80*i)); <span style="color: #666666;">//24hr 100</span>
+&nbsp;&nbsp;}
+<span style="color: #006699;">textAlign</span>(<span style="color: #718A62;">CENTER</span>);
+<span style="color: #006699;">textFont</span>(font1, 32);
+<span style="color: #006699;">text</span>(<span style="color: #7D4793;">&quot;last hr activity&quot;</span>, 380, 30);
+<span style="color: #006699;">text</span>(<span style="color: #7D4793;">&quot;24hr activity&quot;</span>, 920, 30);
+<span style="color: #006699;">textFont</span>(font2, 16);
+<span style="color: #006699;">text</span>(<span style="color: #7D4793;">&quot;press x to stop recording and save to file&quot;</span>, <span style="color: #D94A7A;">width</span>/2, <span style="color: #D94A7A;">height</span>-10);
+
+<span style="color: #666666;">//&nbsp;check&nbsp;output&nbsp;from&nbsp;list&nbsp;of&nbsp;connections&nbsp;and&nbsp;change&nbsp;portIndex&nbsp;if&nbsp;needed.</span>
+<span style="color: #006699;">println</span>(Serial.<span style="color: #006699;">list</span>());
+<span style="color: #E2661A;">String</span> portName = Serial.<span style="color: #006699;">list</span>()[portIndex]; <span style="color: #666666;">// Open whatever serial port is connected to the Arduino.</span>
+<span style="color: #006699;">println</span>(Serial.<span style="color: #006699;">list</span>()); <span style="color: #666666;">// check output from list of connections and change portIndex if needed.</span>
+<span style="color: #006699;">println</span>(<span style="color: #7D4793;">&quot; Connecting to -&gt; &quot;</span> + Serial.<span style="color: #006699;">list</span>()[portIndex]);
+myPort&nbsp;=&nbsp;<span style="color: #33997E;">new</span> Serial(<span style="color: #33997E;">this</span>, portName, 57600);
+myPort.bufferUntil(LF);
+delay(1);
+Date&nbsp;now&nbsp;=&nbsp;<span style="color: #33997E;">new</span> Date();
+fileName&nbsp;=&nbsp;fnameFormat.<span style="color: #006699;">format</span>(now);
+output&nbsp;=&nbsp;<span style="color: #006699;">createWriter</span>(fileName + <span style="color: #7D4793;">&quot;.csv&quot;</span>); <span style="color: #666666;">// save the file in the sketch folder</span>
+<span style="color: #006699;">println</span>(<span style="color: #7D4793;">&quot;Time \t PIR1 \t PIR2 \t PIR3 \t PIR4 \t PIR5 \t PIR6 \t LDR&quot;</span>);
+output.<span style="color: #006699;">println</span>(<span style="color: #7D4793;">&quot;Time,header,PIR1,PIR2,PIR3,PIR4,PIR5,PIR6,LDR&quot;</span>); <span style="color: #666666;">// headers to file as comma-delimited</span>
+}
+
+<span style="color: #33997E;">void</span> <span style="color: #006699;"><b>draw</b></span>()
+{}
+
+<span style="color: #33997E;">void</span> serialEvent(Serial myPort) {
+dataIn&nbsp;=&nbsp;myPort.readString();&nbsp;<span style="color: #666666;">// read data from the port:</span>
+<span style="color: #E2661A;">String</span> timeString = timeFormat.<span style="color: #006699;">format</span>(<span style="color: #33997E;">new</span> Date());
+<span style="color: #006699;">println</span>(timeString + <span style="color: #7D4793;">&quot;,&quot;</span> + dataIn); <span style="color: #666666;">// tell us who sent what:</span>
+output.<span style="color: #006699;">println</span>(timeString+ <span style="color: #7D4793;">&quot;,&quot;</span> +dataIn); <span style="color: #666666;">//save sent message:</span>
+
+<span style="color: #E2661A;">String</span> incomingValues[] = dataIn.<span style="color: #006699;">split</span>(<span style="color: #7D4793;">&quot;,&quot;</span>); <span style="color: #666666;">// take message and split into and array of values</span>
+<span style="color: #669900;">if</span>(incomingValues[0].<span style="color: #006699;">equals</span>(HEADER)) <span style="color: #666666;">// If data header is present and correct, convert light, then pir values into integers</span>
+{&nbsp;<span style="color: #E2661A;">int</span> Light = <span style="color: #E2661A;">Integer</span>.<span style="color: #006699;">parseInt</span>(incomingValues[7]);
+<span style="color: #E2661A;">float</span> LightBar = <span style="color: #006699;">map</span>(Light, 0, 1024, 0, 255);
+<span style="color: #006699;">fill</span>(LightBar);
+<span style="color: #006699;">stroke</span>(LightBar);
+<span style="color: #669900;">for</span> (<span style="color: #E2661A;">int</span> j=1; j&lt;7; j++) {
+&nbsp;&nbsp;<span style="color: #006699;">fill</span>(LightBar);
+&nbsp;&nbsp;<span style="color: #006699;">stroke</span>(LightBar);
+&nbsp;&nbsp;<span style="color: #006699;">rect</span>(41+2*PollCount, 55+(80*(j-1)), 5, 50); <span style="color: #666666;">// lightlevel for all</span>
+&nbsp;&nbsp;<span style="color: #006699;">fill</span> (on);
+&nbsp;&nbsp;
+&nbsp;&nbsp;<span style="color: #666666;">//plot activity as bar with height as activity and colour based on LDR values</span>
+&nbsp;&nbsp;ActivBar[j]&nbsp;=&nbsp;<span style="color: #E2661A;">Float</span>.<span style="color: #006699;">parseFloat</span>(incomingValues[j]);
+&nbsp;&nbsp;<span style="color: #006699;">rect</span>(41+2*PollCount, 105+(80*(j-1)), 5 ,-(ActivBar[j]/2));
+&nbsp;&nbsp;HourTotalActivity[j]&nbsp;=&nbsp;HourTotalActivity[j]&nbsp;+&nbsp;ActivBar[j];
+&nbsp;&nbsp;}
+HourTotalLight&nbsp;=&nbsp;HourTotalLight&nbsp;+&nbsp;Light;
+output.<span style="color: #006699;">flush</span>(); <span style="color: #666666;">// Writes outstanding data to the file</span>
+PollCount&nbsp;++;
+<span style="color: #669900;">if</span> (PollCount &gt;359){
+&nbsp;&nbsp;<span style="color: #E2661A;">float</span> LightBar2 = <span style="color: #006699;">map</span>(HourTotalLight, 0, (360*1024), 0, 255);
+&nbsp;&nbsp;<span style="color: #006699;">fill</span>(LightBar2);
+&nbsp;&nbsp;<span style="color: #006699;">stroke</span>(LightBar2);
+&nbsp;&nbsp;<span style="color: #669900;">for</span> (<span style="color: #E2661A;">int</span> k=1; k&lt;7; k++) {
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #006699;">fill</span>(LightBar2);
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #006699;">stroke</span>(LightBar2);
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #006699;">rect</span>(832 + (9*HourCount), 55+(80*(k-1)), 14 ,50);
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #006699;">fill</span> (on);
+&nbsp;&nbsp;&nbsp;&nbsp;ActivBar2[k]&nbsp;=&nbsp;<span style="color: #006699;">map</span>(HourTotalActivity[k], 0, 36000, 0, 50);
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color: #006699;">rect</span>(832 + (9*HourCount), 105+(80*(k-1)), 14 ,-ActivBar2[k]);
+&nbsp;&nbsp;&nbsp;&nbsp;HourTotalLight&nbsp;=&nbsp;0;
+&nbsp;&nbsp;&nbsp;&nbsp;HourTotalActivity[k]&nbsp;=0;
+&nbsp;&nbsp;&nbsp;&nbsp;}
+&nbsp;&nbsp;HourCount&nbsp;++;
+&nbsp;&nbsp;PollCount&nbsp;=&nbsp;0;
+&nbsp;&nbsp;}
+<span style="color: #669900;">if</span> (HourCount &gt;23){
+&nbsp;&nbsp;HourCount&nbsp;=&nbsp;0;
+&nbsp;&nbsp;}
+}
+}
+<span style="color: #33997E;">void</span> <span style="color: #006699;"><b>keyPressed</b></span>() {
+<span style="color: #669900;">if</span> (<span style="color: #D94A7A;">key</span> == <span style="color: #7D4793;">&apos;x&apos;</span> || <span style="color: #D94A7A;">key</span> == <span style="color: #7D4793;">&apos;X&apos;</span>) {
+&nbsp;&nbsp;output.<span style="color: #006699;">flush</span>(); <span style="color: #666666;">// Writes the remaining data to the file</span>
+&nbsp;&nbsp;output.<span style="color: #006699;">close</span>(); <span style="color: #666666;">// Finishes the file</span>
+&nbsp;&nbsp;<span style="color: #006699;">exit</span>(); <span style="color: #666666;">// Stops the program</span>
+&nbsp;&nbsp;}
+}
+
+</pre></body></html>
