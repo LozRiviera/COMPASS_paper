@@ -1,7 +1,7 @@
 # COMPASS_paper
 # Notebooks and files for Wellcome Open Research submission
 
-### These notebooks provide examples of one method for processing timeseries data from the COMPASS system described in Brown et al (REF)
+### These notebooks provide examples of one method for processing timeseries data from the COMPASS system described in Brown et al (2016)
 
 
 The analysis uses the Python programming language, version 2.7.11, as well a a number of more specific packages. These are all found as part of the Anaconda Python environment produced by Contiuum Analytics This is BSD licenced and cross platform. (https://www.continuum.io/downloads)
