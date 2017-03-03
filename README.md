@@ -6,6 +6,7 @@
 Brown LA, Hasan S, Foster RG and Peirson SN. COMPASS: Continuous Open Mouse Phenotyping of Activity and Sleep Status [version 1; referees: 3 approved, 1 approved with reservations]. Wellcome Open Res 2016, 1:2 (doi: 10.12688/wellcomeopenres.9892.1)
 
 ####  https://wellcomeopenresearch.org/articles/1-2/v1
+now including notebook for revised manuscript (v2) with one method for analysis of bouts of sleep
 
 
 The analysis uses the Python programming language, version 2.7.11, as well a a number of more specific packages. These are all found as part of the Anaconda Python environment produced by Contiuum Analytics This is BSD licenced and cross platform. (https://www.continuum.io/downloads)
