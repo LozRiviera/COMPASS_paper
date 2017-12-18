@@ -24,7 +24,7 @@ conda env create -f COMPASS.yml
 
 ```
 and due to the amazing work of the binder.org team, the whole analysis can now be run in your browser:
-https://mybinder.org/v2/gh/LozRiviera/COMPASS_paper/master
+[![Binder](https://mybinder.org/badge.svg)](https://mybinder.org/v2/gh/LozRiviera/COMPASS_paper/master)
 
 ![workflow](dataFiles.png)
 
