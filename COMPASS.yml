@@ -1,4 +1,4 @@
-name: 
+name: COMPASS
 channels: !!python/tuple
 - !!python/unicode 'defaults'
 dependencies:
